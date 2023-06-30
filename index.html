@@ -1,0 +1,314 @@
+<!doctype html>
+<html>
+<head>
+  <title>Chat App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+    }
+
+    #chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    #header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: #3f51b5;
+      color: #fff;
+      padding: 15px;
+    }
+
+    #header h2 {
+      margin: 0;
+    }
+
+    #dropdown {
+      position: relative;
+      cursor: pointer;
+    }
+
+    #dropdown-icon {
+      color: #fff;
+      font-size: 24px;
+    }
+
+    #dropdown-content {
+      display: none;
+      position: absolute;
+      background-color: #fff;
+      min-width: 160px;
+      box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+      z-index: 1;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    #dropdown:hover #dropdown-content {
+      display: block;
+    }
+
+    .dropdown-item {
+      cursor: pointer;
+    }
+
+    .login-container {
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background-color: #fff;
+      box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .login-container input {
+      display: block;
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .login-container button {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      background-color: #3f51b5;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    #message-list {
+      flex: 1;
+      padding: 15px;
+      overflow-y: scroll;
+    }
+
+    .message {
+      margin-bottom: 10px;
+    }
+
+    .message-info {
+      color: #888;
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+
+    .message-text {
+      background-color: #e1e2e5;
+      padding: 10px;
+      border-radius: 10px;
+      word-wrap: break-word;
+    }
+
+    .sent .message-text {
+      background-color: #3f51b5;
+      color: #fff;
+    }
+
+    .sent .message-info {
+      text-align: right;
+    }
+
+    #input-container {
+      display: flex;
+      padding: 15px;
+      background-color: #fff;
+    }
+
+    #message-input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    #send-button {
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      background-color: #3f51b5;
+      color: #fff;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+
+    #info-container {
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background-color: #fff;
+      box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    #info-container h3 {
+      margin: 0;
+    }
+
+    #info-container p {
+      margin: 10px 0;
+    }
+
+    #info-container #update {
+      font-weight: bold;
+      color: #3f51b5;
+    }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/8.7.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.7.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.7.0/firebase-database.js"></script>
+  <script>
+    // Konfigurasi Firebase
+    var firebaseConfig = {
+      apiKey: "AIzaSyBTrolRbnO1idSP8Q_fZY3YSrzGjl0DN9U",
+  authDomain: "sarvacommunity.firebaseapp.com",
+  databaseURL: "https://sarvacommunity-default-rtdb.firebaseio.com",
+  projectId: "sarvacommunity",
+  storageBucket: "sarvacommunity.appspot.com",
+  messagingSenderId: "14351511666",
+  appId: "1:14351511666:web:33669e9ee5fab691f652eb",
+  measurementId: "G-ZF16QDSYF5"
+    };
+
+    // Inisialisasi Firebase
+    firebase.initializeApp(firebaseConfig);
+
+    // Referensi database
+    var messagesRef = firebase.database().ref('messages');
+
+    // Mendapatkan pengguna saat ini
+    var currentUser = null;
+
+    // Fungsi untuk mengirim pesan
+    function sendMessage() {
+      var messageInput = document.getElementById('message-input');
+      var message = messageInput.value;
+      
+      if (message !== '') {
+        messagesRef.push().set({
+          username: currentUser.displayName,
+          message: message,
+          timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        messageInput.value = '';
+        messageInput.focus();
+      }
+    }
+
+    // Mendapatkan dan menampilkan pesan
+    function loadMessages() {
+      messagesRef.on('child_added', function(snapshot) {
+        var messageData = snapshot.val();
+        var username = messageData.username;
+        var message = messageData.message;
+        var timestamp = messageData.timestamp;
+        var messageTime = new Date(timestamp).toLocaleTimeString();
+
+        var messageList = document.getElementById('message-list');
+        var newMessage = document.createElement('div');
+        newMessage.className = (username === currentUser.displayName) ? "message sent" : "message received";
+        newMessage.innerHTML = '<div class="message-info">' + username + ' &#8226; <span class="message-time">' + messageTime + '</span></div><div class="message-text">' + message + '</div>';
+
+        messageList.appendChild(newMessage);
+
+        // Mengatur scroll ke bawah
+        messageList.scrollTop = messageList.scrollHeight;
+      });
+    }
+
+    // Fungsi untuk logout
+    function logout() {
+      firebase.auth().signOut().then(function() {
+        window.location.reload();
+      });
+    }
+
+    // Fungsi untuk menampilkan dropdown menu
+    function toggleDropdown() {
+      var dropdownContent = document.getElementById('dropdown-content');
+      dropdownContent.style.display = (dropdownContent.style.display === 'block') ? 'none' : 'block';
+    }
+
+    // Fungsi untuk login
+    function login() {
+      var usernameInput = document.getElementById('username-input');
+      var username = usernameInput.value.trim();
+
+      if (username !== '') {
+        firebase.auth().signInAnonymously().then(function() {
+          currentUser = firebase.auth().currentUser;
+          currentUser.updateProfile({
+            displayName: username
+          }).then(function() {
+            document.getElementById('user-name').innerText = currentUser.displayName;
+            document.getElementById('login-container').style.display = 'none';
+            document.getElementById('chat-container').style.display = 'flex';
+            loadMessages();
+          });
+        });
+      }
+    }
+
+    // Fungsi untuk menampilkan halaman informasi
+    function showInfo() {
+      document.getElementById('chat-container').style.display = 'none';
+      document.getElementById('info-container').style.display = 'block';
+    }
+
+    // Fungsi untuk kembali ke halaman chat
+    function backToChat() {
+      document.getElementById('chat-container').style.display = 'flex';
+      document.getElementById('info-container').style.display = 'none';
+    }
+  </script>
+</head>
+<body>
+  <div id="login-container" class="login-container">
+    <h2>Login</h2>
+    <input type="text" id="username-input" placeholder="Username">
+    <button onclick="login()">Login</button>
+  </div>
+
+  <div id="chat-container" style="display: none;">
+    <div id="header">
+      <div id="dropdown" onclick="toggleDropdown()">
+        <span id="dropdown-icon">:</span>
+        <div id="dropdown-content">
+          <p id="user-name"></p>
+          <button onclick="logout()">Logout</button>
+          <button onclick="showInfo()">Informasi</button>
+        </div>
+      </div>
+      <h2>Chat App</h2>
+    </div>
+
+    <div id="message-list"></div>
+
+    <div id="input-container">
+      <input type="text" id="message-input" placeholder="Type a message...">
+      <button id="send-button" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <div id="info-container" style="display: none;">
+    <h3>Informasi</h3>
+    <p>Selamat datang di Chat App! Aplikasi ini memungkinkan Anda untuk mengirim pesan secara anonim.</p>
+    <p>Untuk menggunakan aplikasi, masukkan username Anda pada halaman login, kemudian Anda dapat mulai mengirim dan menerima pesan.</p>
+    <p>Jika Anda ingin keluar, klik tombol Logout.</p>
+    <p>Jika Anda memiliki pertanyaan atau masukan, silakan hubungi @SarvaAnimation.</p>
+    <p id="update">Update: update yang sudah ditambahkan</p>
+    <p>Versi: 0.2</p>
+    <button onclick="backToChat()">Kembali ke Chat</button>
+  </div>
+
+</body></html>
